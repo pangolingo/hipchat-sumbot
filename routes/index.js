@@ -37,8 +37,8 @@ function analyzeChats(messages){
       //extract: 'entity,keyword,taxonomy,concept,doc-emotion', // these should mostly be the default ones
       extract: 'keyword,concept,doc-emotion', // only the ones we use
       text: messages.join("\n"),
-      sentiment: 1,
-    };    
+      // sentiment: 1,
+    };
     // this is a combined analysis which means it can extract multiple things
     alchemy_language.combined(parameters, function (err, response) {
       if (err){
@@ -48,16 +48,20 @@ function analyzeChats(messages){
       } else {
         console.log(response);
         var bestEmotion = sortEmotionsByRelevance(response.docEmotions).pop().name;
-        var sortedConcepts = sortConceptsOrKeywordsByRelevance(response.concepts);
-        if(sortedConcepts.length < 1){
-          // if there are no concepts, use keywords
-          var sortedConcepts = sortConceptsOrKeywordsByRelevance(response.keywords);
+        // var sortedConcepts = sortConceptsOrKeywordsByRelevance(response.concepts);
+        // if(sortedConcepts.length < 1){
+        //   // if there are no concepts, use keywords
+        //   var sortedConcepts = sortConceptsOrKeywordsByRelevance(response.keywords);
+        // }
+        var randomTopic = getRandomGoodConceptOrKeyword(response.concepts);
+        if(!randomTopic){
+          randomTopic = getRandomGoodConceptOrKeyword(response.keywords);
         }
-        var bestTopic = sortedConcepts.pop().text;
-        console.log(bestTopic);
+        // var bestTopic = sortedConcepts.pop().text;
+        console.log(randomTopic);
         // resolve the promise
         resolve({
-          topic: bestTopic,
+          topic: randomTopic,
           emotion: bestEmotion
         });
       }
@@ -65,6 +69,17 @@ function analyzeChats(messages){
 
   });
 
+}
+
+function getRandomGoodConceptOrKeyword(concepts){
+  if(!concepts || concepts.length < 1){
+    return null;
+  }
+  var goodConcepts = concepts.filter(function(a){
+    return parseFloat(a.relevance) > 0.5;
+  });
+  var randomConcept = goodConcepts[Math.floor(Math.random()*goodConcepts.length)];
+  return randomConcept;
 }
 
 function sortConceptsOrKeywordsByRelevance(concepts){
