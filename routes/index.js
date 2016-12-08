@@ -61,7 +61,7 @@ function analyzeChats(messages){
         console.log(randomTopic);
         // resolve the promise
         resolve({
-          topic: randomTopic,
+          topic: randomTopic.text,
           emotion: bestEmotion
         });
       }
