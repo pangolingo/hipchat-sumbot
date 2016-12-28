@@ -50,10 +50,10 @@ hipchatMethods.getRoomHistory(clientInfo, clientInfo.roomId)
 
     console.log('updating glance');
     var p1 = hipchatMethods.updateGlance(clientInfo, clientInfo.roomId, 'sample.glance', glance);
-    console.log('sending message');
-    var p2 = hipchatMethods.sendMessage(clientInfo, clientInfo.roomId, JSON.stringify(result));
+    // console.log('sending message');
+    // var p2 = hipchatMethods.sendMessage(clientInfo, clientInfo.roomId, JSON.stringify(result));
     
-    RSVP.all([p1, p2]).then(function(resultsArray) {
+    RSVP.all([p1]).then(function(resultsArray) {
       // posts contains an array of results for the given promises
       console.log('done');
       process.exit();
