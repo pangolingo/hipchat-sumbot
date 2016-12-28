@@ -32,6 +32,8 @@ hipchat.settings.getAllClientInfos()
   .then(function(clientInfos){
     if(clientInfos.length < 1){
       console.log('no client info in Redis');
+      console.log('done');
+      process.exit();
       return;
     }
     var clientInfo = clientInfos[0];
@@ -49,16 +51,17 @@ hipchatMethods.getRoomHistory(clientInfo, clientInfo.roomId)
   .catch(function(error) {
     console.log(error);
   })
+  .finally(function(){
+      console.log('done');
+      process.exit();
+  });
   // .always(function(){
   //     console.log('done');
   // });
 
 
 
-  })
-  .finally(function(){
-      console.log('done');
-      process.exit()
   });
+  
 
 // process.exit()
