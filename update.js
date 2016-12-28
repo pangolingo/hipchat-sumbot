@@ -4,6 +4,8 @@
 // web framework that `atlassian-connect-express` uses
 var express = require('express');
 
+var RSVP = require('rsvp');
+
 // You need to load `atlassian-connect-express` to use her godly powers
 var ac = require('atlassian-connect-express');
 process.env.PWD = process.env.PWD || process.cwd(); // Fix expiry on Windows :(
