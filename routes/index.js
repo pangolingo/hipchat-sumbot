@@ -1,153 +1,11 @@
-var http = require('request');
+/* jshint node: true */
+
+// var http = require('request');
 var cors = require('cors');
 var uuid = require('uuid');
 var url = require('url');
-var RSVP = require('rsvp');
-var AlchemyLanguageV1 = require('watson-developer-cloud/alchemy-language/v1');
 
-const bluemixCredentials = {
-  "url": "https://gateway-a.watsonplatform.net/calls",
-  "note": "It may take up to 5 minutes for this key to become active",
-  "apikey": "c1b8c4236f33086d91c4c70cc935c91b5ec3a052"
-};
-
-var alchemy_language = new AlchemyLanguageV1({
-  api_key: bluemixCredentials.apikey
-});
-
-
-function cleanRoomHistory(data){
-    var messages = data.body.items.filter(function(msg){
-      return msg.type === 'message'
-    }).map(function(msg){
-      return msg.message;
-    });
-    return messages;
-}
-
-function analyzeChats(messages){
-  return new RSVP.Promise(function(resolve, reject) {
-
-
-    console.log(`Analyzing ${messages.length} messages`);
-    // console.log(messages);
-
-    // run the analysis
-    var parameters = {
-      //extract: 'entity,keyword,taxonomy,concept,doc-emotion', // these should mostly be the default ones
-      extract: 'keyword,concept,doc-emotion', // only the ones we use
-      text: messages.join("\n"),
-      // sentiment: 1,
-    };
-    // this is a combined analysis which means it can extract multiple things
-    alchemy_language.combined(parameters, function (err, response) {
-      if (err){
-        console.log('error:', err);
-        // reject the promise
-        reject(err);
-      } else {
-        console.log(response);
-        var bestEmotion = sortEmotionsByRelevance(response.docEmotions).pop().name;
-        // var sortedConcepts = sortConceptsOrKeywordsByRelevance(response.concepts);
-        // if(sortedConcepts.length < 1){
-        //   // if there are no concepts, use keywords
-        //   var sortedConcepts = sortConceptsOrKeywordsByRelevance(response.keywords);
-        // }
-        var randomTopic = getRandomGoodConceptOrKeyword(response.concepts);
-        if(!randomTopic){
-          randomTopic = getRandomGoodConceptOrKeyword(response.keywords);
-        }
-        // var bestTopic = sortedConcepts.pop().text;
-        console.log(randomTopic);
-        // resolve the promise
-        resolve({
-          topic: randomTopic.text,
-          emotion: bestEmotion
-        });
-      }
-    });
-
-  });
-
-}
-
-function getRandomGoodConceptOrKeyword(concepts){
-  if(!concepts || concepts.length < 1){
-    return null;
-  }
-  var goodConcepts = concepts.filter(function(a){
-    return parseFloat(a.relevance) > 0.5;
-  });
-  var randomConcept = goodConcepts[Math.floor(Math.random()*goodConcepts.length)];
-  return randomConcept;
-}
-
-function sortConceptsOrKeywordsByRelevance(concepts){
-  if(!concepts || concepts.length < 1){
-    return [];
-  }
-  var concepts2 = concepts.sort(function(a,b){
-    return parseFloat(a.relevance) > parseFloat(b.relevance)
-  });
-  return concepts2;
-}
-
-function sortEmotionsByRelevance(emotionsHash){
-  // convert the hash into an array
-  var emotionsArr = [];
-  for(var key in emotionsHash){
-    emotionsArr.push({
-      name: key,
-      relevance: parseFloat(emotionsHash[key])
-    });
-  }
-  // sort the array
-  var emotionsArr2 = emotionsArr.sort(function(a, b){
-    return a.relevance > b.relevance
-  });
-  return emotionsArr2;
-}
-
-function getEmotionDetails(emotionStr){
-  var emotions = [
-    { name: 'anger', text: "angry", icon: "angry.gif" },
-    { name: 'disgust', text: "disgusted", icon: "horrified.png" },
-    { name: 'fear', text: "scared", icon: "scared.gif" },
-    { name: 'joy', text: "happy", icon: "happy.gif" },
-    { name: 'sadness', text: "sad", icon: "sad.gif" },
-  ];
-  return emotions.find(function(e){
-    return e.name === emotionStr
-  })
-}
-
-function buildGlance(addon, analysis){
-  var emotionDetails;
-  if(!analysis){
-    emotionDetails = { name: null, text: "loading", icon: "loading.gif" }
-    analysis = {
-      emotion: null,
-      topic: "Analysing..."
-    }
-  } else {
-    emotionDetails = getEmotionDetails(analysis.emotion);
-  }
-  var glanceData = {
-        "label": {
-          "type": "html",
-          // "value": `We&rsquo;re ${emotionDetails.text}`
-          "value": `Topic: ${analysis.topic}`
-        },
-        "status": {
-          "type": "icon",
-          "value": {
-            "url": `${addon.descriptor.links.homepage}/img/emotes/${emotionDetails.icon}`,
-            "url@2x": `${addon.descriptor.links.homepage}/img/emotes/${emotionDetails.icon}`
-          }
-        }
-      };
-      return glanceData;
-}
+var sumbot = require('../lib/sumbot');
 
 // This is the heart of your HipChat Connect add-on. For more information,
 // take a look at https://developer.atlassian.com/hipchat/tutorials/getting-started-with-atlassian-connect-express-node-js
@@ -204,7 +62,7 @@ module.exports = function (app, addon) {
     cors(),
     addon.authenticate(),
     function (req, res) {
-      res.json(buildGlance(addon));
+      res.json(sumbot.buildGlance(addon));
     }
     );
 
@@ -216,7 +74,7 @@ module.exports = function (app, addon) {
     cors(),
     addon.authenticate(),
     function (req, res) {
-      res.json(buildGlance(addon));
+      res.json(sumbot.buildGlance(addon));
     }
     );
 
@@ -260,21 +118,21 @@ module.exports = function (app, addon) {
     function (req, res) {
       // show progress
       hipchat.sendMessage(req.clientInfo, req.identity.roomId, 'Summarizing...');
-      var glance = buildGlance(addon);
+      var glance = sumbot.buildGlance(addon);
       hipchat.updateGlance(req.clientInfo, req.identity.roomId, 'sample.glance', glance);
       res.sendStatus(200);
 
       // run analysis
       hipchat.getRoomHistory(req.clientInfo, req.identity.roomId)
-        .then(cleanRoomHistory)
-        .then(analyzeChats)
+        .then(sumbot.cleanRoomHistory)
+        .then(sumbot.analyzeChats)
         .then(function(result){
-          var glance = buildGlance(addon, result);
+          var glance = sumbot.buildGlance(addon, result);
           hipchat.updateGlance(req.clientInfo, req.identity.roomId, 'sample.glance', glance);
           hipchat.sendMessage(req.clientInfo, req.identity.roomId, JSON.stringify(result))
         })
         .catch(function(error) {
-          console.log(errror);
+          console.log(error);
         });
     }
   );
