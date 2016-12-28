@@ -44,12 +44,21 @@ hipchatMethods.getRoomHistory(clientInfo, clientInfo.roomId)
   .then(function(result){
     var glance = sumbot.buildGlance(addon, result);
     hipchatMethods.updateGlance(clientInfo, clientInfo.roomId, 'sample.glance', glance);
-    // hipchatMethods.sendMessage(clientInfo, clientInfo.roomId, JSON.stringify(result));
+    hipchatMethods.sendMessage(clientInfo, clientInfo.roomId, JSON.stringify(result));
   })
   .catch(function(error) {
     console.log(error);
+  })
+  // .always(function(){
+  //     console.log('done');
+  // });
+
+
+
+  })
+  .finally(function(){
+      console.log('done');
+      process.exit()
   });
 
-
-
-  });
+// process.exit()
