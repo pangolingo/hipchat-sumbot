@@ -6,11 +6,14 @@ var uuid = require('uuid');
 var url = require('url');
 
 var sumbot = require('../lib/sumbot');
+var magicRunAnalysis = require('../lib/magic-run-analysis');
+var atlassianConnect = require('atlassian-connect-express-hipchat');
 
 // This is the heart of your HipChat Connect add-on. For more information,
 // take a look at https://developer.atlassian.com/hipchat/tutorials/getting-started-with-atlassian-connect-express-node-js
 module.exports = function (app, addon) {
   var hipchat = require('../lib/hipchat')(addon);
+  var hipchatConnect = atlassianConnect(addon, app);
 
   // simple healthcheck
   app.get('/healthcheck', function (req, res) {
@@ -83,9 +86,19 @@ module.exports = function (app, addon) {
   app.get('/sidebar',
     addon.authenticate(),
     function (req, res) {
-      res.render('sidebar', {
-        identity: req.identity
+      magicRunAnalysis(hipchatConnect.settings, hipchat, sumbot, function(clientInfo, result){
+        res.render('sidebar', {
+          // identity: req.identity
+          data: result,
+          dataStr: JSON.stringify(result)
+        });
       });
+
+
+      // res.render('sidebar', {
+      //   // identity: req.identity
+      //   data: 'hello world'
+      // });
     }
     );
 
@@ -127,9 +140,10 @@ module.exports = function (app, addon) {
         .then(sumbot.cleanRoomHistory)
         .then(sumbot.analyzeChats)
         .then(function(result){
-          var glance = sumbot.buildGlance(addon, result);
+          var filtered = sumbot.filterAnalysis(result);
+          var glance = sumbot.buildGlance(addon, filtered);
           hipchat.updateGlance(req.clientInfo, req.identity.roomId, 'sample.glance', glance);
-          hipchat.sendMessage(req.clientInfo, req.identity.roomId, JSON.stringify(result))
+          hipchat.sendMessage(req.clientInfo, req.identity.roomId, JSON.stringify(filtered))
         })
         .catch(function(error) {
           console.log(error);
